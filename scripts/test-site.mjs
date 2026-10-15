@@ -171,7 +171,7 @@ await check('landing page heading reads "Latest"', async () => {
 
 await check('bio renders the Optimization Theory of Everything link as a real anchor with exact text', async () => {
   const html = await readFile(path.join(distPath, 'index.html'), 'utf8');
-  assert.match(html, /I&#39;m an engineer building distributed trees @ Fluid Framework\. Lately, I&#39;ve been playing with fractals, learning about mechanistic interpretability, and playing pickleball\. I&#39;m a firm believer in the <a href="https:\/\/12gramsofcarbon\.com\/p\/the-optimization-theory-of-everything">Optimization Theory of Everything<\/a>\./);
+  assert.match(html, /I&#39;m an engineer building distributed trees @ Fluid Framework\. Lately, I&#39;ve been exploring fractals, learning about mechanistic interpretability, and playing pickleball\. I&#39;m a devout believer in the <a href="https:\/\/12gramsofcarbon\.com\/p\/the-optimization-theory-of-everything">Optimization Theory of Everything<\/a>\./);
   assert.doesNotMatch(html, /@ Microsoft/, 'bio must not retain the old "@ Microsoft" wording');
   const landing = await parseHtml(path.join(distPath, 'index.html'));
   const bioLink = elements(landing).find(n => n.tagName === 'a' && text(n) === "Optimization Theory of Everything");
