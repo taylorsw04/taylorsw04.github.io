@@ -58,7 +58,7 @@ The B+ tree library supports O(1) cloning of entire trees, allowing developers t
 
 `const treeB = treeA.clone(); // treeB also contains keys 1, 2, 3, 4`
 
-`treeA.delete(2); // treeB now contains keys 1, 3, 4, but treeB still contains all four keys`
+`treeA.delete(2); // treeA now contains keys 1, 3, 4, but treeB still contains all four keys`
 
 How can this be done in constant time? The key to this is to share nodes by reference, performing clones lazily when mutations would impact them. In other words, a call to `clone` does the following:
 
