@@ -1,8 +1,8 @@
 // Focused checks for the built static site. Run with `npm test` after `npm run build`.
-// Deliberately avoids Playwright/Chromium (crashes in this environment) in favor of
-// Node-native checks: static analysis of the build output plus running the real,
-// unmodified vendored BTree TypeScript directly in Node to exercise actual union/decompose
-// behavior bundled into the site.
+// Deliberately avoids browser automation here (see scripts/test-mobile-interactions.mjs for the
+// separate, optional touch/pointer interaction checks) in favor of Node-native checks: static
+// analysis of the build output plus running the real, unmodified vendored BTree TypeScript
+// directly in Node to exercise actual union/decompose behavior bundled into the site.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdtemp, cp, readFile, readdir, rm, writeFile } from 'node:fs/promises';

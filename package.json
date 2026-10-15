@@ -9,7 +9,7 @@
     "dev": "node scripts/dev.mjs",
     "serve": "node scripts/serve.mjs",
     "check": "tsc -p docs/web/tsconfig.json",
-    "test": "node scripts/test-site.mjs"
+    "test": "node scripts/test-site.mjs && node scripts/test-mobile-interactions.mjs"
   },
   "devDependencies": {
     "@types/d3-dispatch": "3.0.6",
@@ -24,7 +24,7 @@
     "marked": "^15.0.12",
     "mermaid": "^11.12.2",
     "parse5": "^7.3.0",
+    "playwright-core": "^1.64.0",
     "typescript": "^5.5.4"
-  },
-  "dependencies": {}
+  }
 }

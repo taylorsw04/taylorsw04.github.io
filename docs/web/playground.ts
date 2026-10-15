@@ -247,7 +247,12 @@ export function mountPlayground(host: HTMLElement, options: PlaygroundOptions = 
     canvas.removeAttribute('tabindex');
   canvas.setAttribute('aria-label', permissions.selectNodes || permissions.treeMenus
     ? 'Interactive B+ tree canvas' : 'B+ tree diagram');
-  canvas.style.touchAction = permissions.pan || permissions.zoom ? 'none' : 'auto';
+  // iOS Safari does not reliably honor `touch-action` set only on an <svg>: it can still treat a
+  // two-finger gesture over the canvas as a page-level pinch-zoom and never deliver pointer events
+  // to our handlers. Setting the same value on the HTML parent makes WebKit respect it consistently.
+  const touchAction = permissions.pan || permissions.zoom ? 'none' : 'auto';
+  canvas.style.touchAction = touchAction;
+  surface.style.touchAction = touchAction;
   if (display.height !== undefined) {
     canvas.style.height = `${display.height}px`;
     canvas.style.minHeight = '0';
@@ -395,6 +400,14 @@ export function mountPlayground(host: HTMLElement, options: PlaygroundOptions = 
   canvas.addEventListener('pointercancel', finishCameraGesture);
   canvas.addEventListener('lostpointercapture', finishCameraGesture);
   canvas.addEventListener('click', suppressGestureClick, true);
+  // Safari's proprietary two-finger `gesture*` events drive its native page pinch-zoom and are
+  // dispatched independent of `touch-action`/Pointer Events. Swallow them over the canvas so a
+  // pinch always reaches our own pointer-based zoom instead of zooming the whole page.
+  function preventNativeGesture(event: Event): void {
+    if (permissions.pan || permissions.zoom) event.preventDefault();
+  }
+  canvas.addEventListener('gesturestart', preventNativeGesture);
+  canvas.addEventListener('gesturechange', preventNativeGesture);
   function preventCanvasSelection(event: Event): void {
     event.preventDefault();
   }
@@ -1623,6 +1636,8 @@ export function mountPlayground(host: HTMLElement, options: PlaygroundOptions = 
     canvas.removeEventListener('pointerup', finishCameraGesture);
     canvas.removeEventListener('pointercancel', finishCameraGesture);
     canvas.removeEventListener('lostpointercapture', finishCameraGesture);
+    canvas.removeEventListener('gesturestart', preventNativeGesture);
+    canvas.removeEventListener('gesturechange', preventNativeGesture);
     canvas.removeEventListener('selectstart', preventCanvasSelection);
     canvas.removeEventListener('dragstart', preventCanvasSelection);
     for (const [id, point] of pointers)

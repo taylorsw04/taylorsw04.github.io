@@ -4,7 +4,7 @@
 
 ## TL;DR {#tldr}
 
-I recently implemented fast versions of [set operations](https://en.wikipedia.org/wiki/Algebra_of_sets) in the only widely-used [b-tree library on NPM](https://www.npmjs.com/package/sorted-btree) (I am one of two co-authors). I spent some time poking around the internet and literature and failed to find any examples of implementations with sublinear bounds, so I decided it would be both useful and fun to publish a write-up of how I did it. This was also an exploration in AI-assisted pedagogy that originates out of frustration with how abysmal current models are at following the "intuitional river" that makes for parsimonious explanations. All writing and mistakes are my own, all diagrams are my agent's.  
+I recently implemented fast versions of [set operations](https://en.wikipedia.org/wiki/Algebra_of_sets) in the only widely-used [b-tree library on NPM](https://www.npmjs.com/package/sorted-btree) (I am one of two co-authors). I spent some time poking around the internet and literature and failed to find any examples of implementations with sublinear bounds, so I decided it would be both useful and fun to publish a write-up of how I did it. This is also an exploration in AI-assisted pedagogy originating out of frustration with how abysmal current models are at following the "intuitional river" that makes for truly good explanations. All writing and mistakes are my own, all diagrams are my agent's.  
 
 ## Primer: B-trees are Best-trees {#primer}
 

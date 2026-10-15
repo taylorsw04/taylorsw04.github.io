@@ -21,12 +21,30 @@ playgrounds.forEach(playground => {
 const disclosure = document.querySelector<HTMLDetailsElement>('.toc-disclosure');
 const desktop = window.matchMedia('(min-width: 700px)');
 if (disclosure) {
-  const adaptContents = () => { disclosure.open = desktop.matches; };
+  // Track whether the reader has manually opened/closed the disclosure (via tap or keyboard)
+  // so a later orientation/viewport change never silently overrides their choice. Without this,
+  // rotating a phone whose landscape width crosses the desktop breakpoint re-forces the panel
+  // back to the width-based default, which looks like it is "stuck" relative to orientation.
+  let userOverride = false;
+  let settingProgrammatically = false;
+  const setOpen = (value: boolean) => {
+    settingProgrammatically = true;
+    disclosure.open = value;
+    settingProgrammatically = false;
+  };
+  disclosure.addEventListener('toggle', () => {
+    if (!settingProgrammatically) userOverride = true;
+  });
+  const adaptContents = () => {
+    if (userOverride) return;
+    setOpen(desktop.matches);
+  };
   adaptContents();
   desktop.addEventListener('change', adaptContents);
   disclosure.addEventListener('click', event => {
     if (!desktop.matches && event.target instanceof Element && event.target.closest('a')) {
-      disclosure.open = false;
+      setOpen(false);
+      userOverride = false;
     }
   });
 }

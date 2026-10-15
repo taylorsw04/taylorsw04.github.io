@@ -14,7 +14,7 @@
 .tree-playground [hidden] { display: none !important; }
 .tree-playground.lab-no-frame { border: 0; border-radius: 0; background: #fff; }
 .tree-playground.lab-no-grid .lab-canvas { background-image: none; background-color: #fff; }
-.lab-surface { position: relative; --lab-menu-top: 68px; }
+.lab-surface { position: relative; --lab-menu-top: 68px; touch-action: none; }
 .lab-canvas {
   display: block; width: 100%; height: min(720px, 80vh); min-height: 430px;
   background-image: radial-gradient(#c8d3d9 1px, transparent 1px);
