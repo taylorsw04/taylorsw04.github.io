@@ -1538,13 +1538,34 @@ export function mountPlayground(host: HTMLElement, options: PlaygroundOptions = 
     });
   });
 
+  // dismiss() is otherwise unconditional, so without this check every playground instance on the
+  // page (there are usually several) would re-render its full node/link highlight state and
+  // tree-input labels on *every* pointerdown anywhere on the page, including ordinary taps on
+  // unrelated prose/TOC links. That synchronous DOM churn directly under a touch can make iOS
+  // Safari's touch-to-click gesture recognizer decide the tapped content changed underneath the
+  // finger and silently cancel the synthesized click (long-press/context-menu still works, since
+  // that's a separate gesture path) -- matching reports of taps doing nothing on iPhone while a
+  // long-press correctly opens the link. Mirror dismiss()'s own effective no-op conditions here so
+  // we only pay for- and perform- the heavy re-render when something is actually open to clear.
+  function wouldDismissAnything(clearHighlights: boolean): boolean {
+    if (!treeMenu.hidden) return true;
+    if (clearHighlights && canClearSelection &&
+        (pinnedNodeSelection !== undefined || selectedReconstructionNode !== undefined ||
+          (!isOperationPinned() && highlight.kind !== 'none'))) return true;
+    if (!addPanel.hidden || !combinePanel.hidden) return true;
+    if (!status.hidden) return true;
+    if (interaction.kind !== 'idle') return true;
+    return false;
+  }
   function outsidePointerDown(event: PointerEvent): void {
     if (!(event.target instanceof Element)) return;
     const playground = event.target.closest('.tree-playground');
     if (playground && playground !== host) return;
     if (host.contains(event.target) && event.target.closest('.lab-popover, .lab-tree-menu, .lab-camera, .lab-pick-prompt, .lab-timeline')) return;
     if (interaction.kind === 'picking' && host.contains(event.target)) return;
-    dismiss(!canvas.contains(event.target));
+    const clearHighlights = !canvas.contains(event.target);
+    if (!wouldDismissAnything(clearHighlights)) return;
+    dismiss(clearHighlights);
   }
   document.addEventListener('pointerdown', outsidePointerDown);
   function blankClick(event: MouseEvent): void {

@@ -1,5 +1,7 @@
-// Touch/pointer regression checks for the mobile fixes to the "On this page" disclosure and the
-// diagram pan/pinch-zoom gesture handling. Run with `npm test` after `npm run build`.
+// Touch/pointer regression checks for the mobile fixes to the "On this page" disclosure, the
+// diagram pan/pinch-zoom gesture handling, and taps anywhere on the page unexpectedly triggering
+// every mounted diagram's outside-click cleanup/re-render path. Run with `npm test` after
+// `npm run build`.
 //
 // This intentionally does NOT use the `playwright` package (which downloads its own browsers);
 // it drives the real Chromium binary already cached locally by a prior Playwright install via the
@@ -244,6 +246,63 @@ await withServer(distPath, async baseUrl => {
         await page.keyboard.up('Control');
         const afterZoom = await readScale();
         assert.notEqual(afterZoom, beforeZoom, 'expected Ctrl+wheel to still zoom the camera');
+      } finally { await context.close(); }
+    });
+
+    // --- 4. Taps on ordinary links elsewhere on the page must not trigger every mounted
+    // diagram's "outside click" cleanup/re-render path, which previously ran unconditionally on
+    // every single pointerdown anywhere on the page (even when nothing was open), making it a
+    // plausible cause of iOS Safari cancelling tap-to-click activation for every link. ---
+    await check('tapping an ordinary article link does not trigger DOM churn in mounted diagrams', async () => {
+      const context = await browser.newContext({ ...devices['iPhone 13'] });
+      try {
+        const page = await context.newPage();
+        await page.goto(postUrl, { waitUntil: 'networkidle' });
+        // Scroll partway through the article so several diagrams are mounted, matching how a
+        // reader would have reached an inline cross-reference link in practice.
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight * 0.35));
+        await page.waitForTimeout(300);
+        const mounted = await page.evaluate(() => document.querySelectorAll('.tree-playground').length);
+        assert.ok(mounted >= 2, `expected multiple mounted diagrams by this scroll position, got ${mounted}`);
+        const mutationCount = await page.evaluate(async () => {
+          const link = Array.from(document.querySelectorAll('a[href="#fast-reconstruction"]')).pop();
+          let count = 0;
+          const observer = new MutationObserver(records => { count += records.length; });
+          observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+          const rect = link.getBoundingClientRect();
+          link.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch',
+            clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2
+          }));
+          await new Promise(r => requestAnimationFrame(r));
+          await new Promise(r => requestAnimationFrame(r));
+          observer.disconnect();
+          return count;
+        });
+        assert.equal(mutationCount, 0,
+          `tapping an unrelated link should not mutate diagram DOM, but caused ${mutationCount} mutation record(s)`);
+      } finally { await context.close(); }
+    });
+
+    // --- 5. The outside-tap cleanup must still actually run when a diagram genuinely has open
+    // state to clear (tree menu / node selection), so the fix above is a targeted no-op skip, not
+    // a removal of real dismiss-on-outside-click behavior. ---
+    await check('tapping outside a diagram still clears a real open tree menu/selection', async () => {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      try {
+        const page = await context.newPage();
+        await page.goto(postUrl, { waitUntil: 'networkidle' });
+        const canvas = page.locator('.lab-canvas').first();
+        await canvas.scrollIntoViewIfNeeded();
+        const node = canvas.locator('.lab-node.is-interactive').first();
+        await node.click();
+        const menuVisibleAfterClick = await canvas.evaluate(
+          el => el.closest('.lab-surface').querySelector('.lab-tree-menu')?.hidden === false);
+        assert.ok(menuVisibleAfterClick, 'clicking a node should open its tree menu (precondition for this check)');
+        await page.locator('.article-byline').click();
+        const menuHiddenAfterOutsideClick = await canvas.evaluate(
+          el => el.closest('.lab-surface').querySelector('.lab-tree-menu')?.hidden === true);
+        assert.ok(menuHiddenAfterOutsideClick, 'clicking outside the diagram should still dismiss an open tree menu');
       } finally { await context.close(); }
     });
   } finally {

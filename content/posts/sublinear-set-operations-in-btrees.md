@@ -76,7 +76,7 @@ This scheme, often referred to as **copy-on-write**, is depicted in the diagram 
 
 B-trees are generalized collections that offer log-time queries and mutations, making them a competitive choice when a map interface is called for, particularly when the spikes from hashtable amortization aren't tolerable. Combine this with constant-time cloning and range queries, and you have a data structure that is particularly suitable for representing [sets](https://en.wikipedia.org/wiki/Set_theory). It is frequently necessary, then, to compute algebraic operations (union, intersection, symmetric difference, etc.) over these sets. On the Fluid Framework team, we use them so heavily in this way that several scenarios became bottlenecked on the runtime of the naive implementations of these operations!
 
-### Making is slow {#slow}
+### Making it slow {#slow}
 
 Consider the *union* operation. The semantics are simple: for two sets, `A` and `B`, `A union B` (or `A∪B`) contains all keys from `A` and `B` combined. The straightforward implementation, given two B+ trees, would be to iterate both `A` and `B`, adding all key/value pairs from both into a new B+ tree `C`; collisions (where the same key is present in both `A` and `B`) can be resolved in whatever fashion is preferred, often by nominating one tree as the tiebreaker. Similarly, intersection would be computed by adding to `C` only keys that are present in *both* `A` and `B`. These algorithms are clearly *O(S<sub>AB</sub> * log(S<sub>AB</sub>))*, where *S<sub>AB</sub> = size(`A`) + size(`B`)*.
 
