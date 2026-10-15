@@ -1,7 +1,9 @@
 // Touch/pointer regression checks for the mobile fixes to the "On this page" disclosure, the
 // diagram pan/pinch-zoom gesture handling, and taps anywhere on the page unexpectedly triggering
-// every mounted diagram's outside-click cleanup/re-render path. Run with `npm test` after
-// `npm run build`.
+// every mounted diagram's outside-click cleanup/re-render path -- including the case where a
+// diagram genuinely has an open menu/selection, where a touch pointerdown must defer that real
+// dismiss to the following click instead of redrawing synchronously before it. Run with `npm test`
+// after `npm run build`.
 //
 // This intentionally does NOT use the `playwright` package (which downloads its own browsers);
 // it drives the real Chromium binary already cached locally by a prior Playwright install via the
@@ -303,6 +305,112 @@ await withServer(distPath, async baseUrl => {
         const menuHiddenAfterOutsideClick = await canvas.evaluate(
           el => el.closest('.lab-surface').querySelector('.lab-tree-menu')?.hidden === true);
         assert.ok(menuHiddenAfterOutsideClick, 'clicking outside the diagram should still dismiss an open tree menu');
+      } finally { await context.close(); }
+    });
+
+    // --- 6/7. The scenario check 4 didn't cover: a touch tap outside a diagram that GENUINELY has
+    // an open menu/selection (so there is real work for the outside-tap handler to do, unlike
+    // check 4's no-op case). The touch pointerdown itself must still cause zero DOM churn (the only
+    // way to guarantee Safari can't cancel the click for it); the dismiss must instead happen on
+    // the subsequent native click, once it's already fired, without ever calling preventDefault --
+    // so an ordinary link still navigates and the TOC <summary> still toggles. ---
+    async function openATreeMenu(page) {
+      const canvas = page.locator('.lab-canvas').first();
+      await canvas.scrollIntoViewIfNeeded();
+      await canvas.locator('.lab-node.is-interactive').first().click();
+      const open = await canvas.evaluate(el => el.closest('.lab-surface').querySelector('.lab-tree-menu')?.hidden === false);
+      assert.ok(open, 'clicking a node should open its tree menu (precondition for this check)');
+      return canvas;
+    }
+    await check('a touch pointerdown outside a diagram with a real open menu causes no DOM churn, and the subsequent click dismisses it without blocking the link it landed on', async () => {
+      const context = await browser.newContext({ ...devices['iPhone 13'] });
+      try {
+        const page = await context.newPage();
+        await page.goto(postUrl, { waitUntil: 'networkidle' });
+        const canvas = await openATreeMenu(page);
+        const link = page.locator('a[href="#fast-reconstruction"]').last();
+        await link.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(300);
+
+        const mutationCount = await page.evaluate(async selector => {
+          const target = document.querySelector(selector);
+          let count = 0;
+          const observer = new MutationObserver(records => { count += records.length; });
+          observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+          const rect = target.getBoundingClientRect();
+          target.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch',
+            clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2
+          }));
+          await new Promise(r => requestAnimationFrame(r));
+          await new Promise(r => requestAnimationFrame(r));
+          observer.disconnect();
+          return count;
+        }, 'a[href="#fast-reconstruction"]:last-of-type');
+        assert.equal(mutationCount, 0,
+          `a touch pointerdown outside a diagram must not redraw it even with a real menu open, but caused ${mutationCount} mutation record(s)`);
+        const stillOpenAfterPointerDown = await canvas.evaluate(
+          el => el.closest('.lab-surface').querySelector('.lab-tree-menu')?.hidden === false);
+        assert.ok(stillOpenAfterPointerDown, 'the touch pointerdown alone must not have dismissed the menu yet (that happens on click)');
+
+        // The browser only ever dispatches 'click' itself after touchend; here we dispatch it
+        // directly to stand in for that (real on-device touchstart/touchend synthesis isn't
+        // reproducible in this headless harness -- see the file-level comment).
+        const defaultPrevented = await page.evaluate(selector => {
+          const target = document.querySelector(selector);
+          const rect = target.getBoundingClientRect();
+          const event = new MouseEvent('click', {
+            bubbles: true, cancelable: true,
+            clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2
+          });
+          target.dispatchEvent(event);
+          return event.defaultPrevented;
+        }, 'a[href="#fast-reconstruction"]:last-of-type');
+        assert.equal(defaultPrevented, false, 'the dismiss-on-click handling must never preventDefault() on the link');
+        await page.waitForTimeout(50);
+        assert.equal(page.url().split('#')[1], 'fast-reconstruction', 'the link must still have actually navigated to its hash target');
+        const menuHiddenAfterClick = await canvas.evaluate(
+          el => el.closest('.lab-surface').querySelector('.lab-tree-menu')?.hidden === true);
+        assert.ok(menuHiddenAfterClick, 'the completed click should dismiss the menu that the earlier touch pointerdown deliberately left open');
+      } finally { await context.close(); }
+    });
+    await check('the same touch-pointerdown-then-click sequence does not block the "On this page" summary from toggling', async () => {
+      const context = await browser.newContext({ ...devices['iPhone 13'] });
+      try {
+        const page = await context.newPage();
+        await page.goto(postUrl, { waitUntil: 'networkidle' });
+        const canvas = await openATreeMenu(page);
+        const summary = page.locator('.toc-disclosure > summary');
+        await summary.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(300);
+
+        const mutationCount = await page.evaluate(async () => {
+          const target = document.querySelector('.toc-disclosure > summary');
+          let count = 0;
+          const observer = new MutationObserver(records => { count += records.length; });
+          observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+          const rect = target.getBoundingClientRect();
+          target.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch',
+            clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2
+          }));
+          await new Promise(r => requestAnimationFrame(r));
+          await new Promise(r => requestAnimationFrame(r));
+          observer.disconnect();
+          return count;
+        });
+        assert.equal(mutationCount, 0, `a touch pointerdown on the TOC summary must not redraw mounted diagrams, but caused ${mutationCount} mutation record(s)`);
+
+        // A real tap toggles <summary> via the browser's native 'click'-driven default action; a
+        // bare dispatched MouseEvent('click') does not reliably trigger that native <details>
+        // behavior the way a trusted click does, so exercise the actual toggle via Playwright's tap
+        // (which performs a real trusted touch gesture end-to-end) rather than another dispatchEvent.
+        await summary.tap();
+        assert.equal(await page.locator('.toc-disclosure').evaluate(el => el.open), true,
+          'tapping the summary must still toggle the disclosure open');
+        const menuHiddenAfterTap = await canvas.evaluate(
+          el => el.closest('.lab-surface').querySelector('.lab-tree-menu')?.hidden === true);
+        assert.ok(menuHiddenAfterTap, 'the completed tap/click on the summary should still dismiss the diagram menu left open earlier');
       } finally { await context.close(); }
     });
   } finally {

@@ -22,6 +22,39 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const MIN_ZOOM = 0.00001;
 let nextInstance = 0;
 const mounted = new WeakMap<HTMLElement, () => void>();
+
+// Shared (page-wide, not per-instance) touch tracking used by every playground's outside-tap
+// dismissal below. A touch pointerdown must never run the dismiss/re-render path directly, since
+// that would mutate the DOM in the touchstart-to-touchend window iOS Safari uses to decide
+// whether to cancel the synthesized click -- doing so even once, on an outside tap while some
+// *other* diagram instance genuinely has a menu/selection open, is enough to trigger it. Instead,
+// we tag the eventual 'click' event (fired only after touchend, once Safari has already committed
+// to synthesizing it) with whether it was touch-originated, so each instance can safely run its
+// real dismiss logic there instead. A capture-phase listener tags the event exactly once, globally,
+// so per-instance bubble-phase listeners can all read the same tag off the same event object
+// without racing each other or leaking state into an unrelated later keyboard-triggered click.
+let lastPointerDownWasTouch = false;
+const touchOriginatedClicks = new WeakSet<MouseEvent>();
+let globalTouchTrackerInstances = 0;
+function trackPointerDown(event: PointerEvent): void {
+  lastPointerDownWasTouch = event.pointerType === 'touch';
+}
+function tagTouchOriginatedClick(event: MouseEvent): void {
+  if (lastPointerDownWasTouch) touchOriginatedClicks.add(event);
+  lastPointerDownWasTouch = false;
+}
+function attachGlobalTouchTracker(): void {
+  if (globalTouchTrackerInstances++ === 0) {
+    document.addEventListener('pointerdown', trackPointerDown, true);
+    document.addEventListener('click', tagTouchOriginatedClick, true);
+  }
+}
+function detachGlobalTouchTracker(): void {
+  if (--globalTouchTrackerInstances === 0) {
+    document.removeEventListener('pointerdown', trackPointerDown, true);
+    document.removeEventListener('click', tagTouchOriginatedClick, true);
+  }
+}
 type Interaction =
   | { kind: 'idle' }
   | { kind: 'picking'; left: number }
@@ -69,6 +102,7 @@ export function mountPlayground(host: HTMLElement, options: PlaygroundOptions = 
   if (selectedOperation !== undefined && !model.get(selectedOperation).origin)
     throw new Error('The selected tree must be an operation result.');
   mounted.get(host)?.();
+  attachGlobalTouchTracker();
   const instance = ++nextInstance;
   const addPanelId = `lab-add-panel-${instance}`;
   const helpId = `lab-help-${instance}`;
@@ -1557,17 +1591,36 @@ export function mountPlayground(host: HTMLElement, options: PlaygroundOptions = 
     if (interaction.kind !== 'idle') return true;
     return false;
   }
-  function outsidePointerDown(event: PointerEvent): void {
-    if (!(event.target instanceof Element)) return;
-    const playground = event.target.closest('.tree-playground');
+  // Shared by both the (non-touch) pointerdown path below and the touch/click path further down:
+  // decides whether `target` is "outside" this instance in the sense that an activation there
+  // should dismiss this instance's menu/selection, and if so, does it.
+  function dismissIfOutside(target: Element): void {
+    const playground = target.closest('.tree-playground');
     if (playground && playground !== host) return;
-    if (host.contains(event.target) && event.target.closest('.lab-popover, .lab-tree-menu, .lab-camera, .lab-pick-prompt, .lab-timeline')) return;
-    if (interaction.kind === 'picking' && host.contains(event.target)) return;
-    const clearHighlights = !canvas.contains(event.target);
+    if (host.contains(target) && target.closest('.lab-popover, .lab-tree-menu, .lab-camera, .lab-pick-prompt, .lab-timeline')) return;
+    if (interaction.kind === 'picking' && host.contains(target)) return;
+    const clearHighlights = !canvas.contains(target);
     if (!wouldDismissAnything(clearHighlights)) return;
     dismiss(clearHighlights);
   }
+  function outsidePointerDown(event: PointerEvent): void {
+    // A touch pointerdown is handled on the later 'click' instead (see outsideClick below): by
+    // the time 'click' fires, Safari has already decided to synthesize it, so running the heavy
+    // dismiss/re-render there can no longer cause it to cancel that decision. Running it here, on
+    // pointerdown, would mutate the DOM while Safari is still deciding, for exactly the taps (an
+    // outside link/summary, while some *other* diagram has a menu/selection open) most likely to
+    // need a real dismiss -- i.e. the case this guard specifically has to cover.
+    if (event.pointerType === 'touch') return;
+    if (!(event.target instanceof Element)) return;
+    dismissIfOutside(event.target);
+  }
   document.addEventListener('pointerdown', outsidePointerDown);
+  function outsideClick(event: MouseEvent): void {
+    if (!touchOriginatedClicks.has(event)) return;
+    if (!(event.target instanceof Element)) return;
+    dismissIfOutside(event.target);
+  }
+  document.addEventListener('click', outsideClick);
   function blankClick(event: MouseEvent): void {
     if (event.target instanceof Element && !event.target.closest('.lab-tree, .lab-operation-edge')) dismiss();
   }
@@ -1647,6 +1700,8 @@ export function mountPlayground(host: HTMLElement, options: PlaygroundOptions = 
     disposed = true;
     observer.disconnect();
     document.removeEventListener('pointerdown', outsidePointerDown);
+    document.removeEventListener('click', outsideClick);
+    detachGlobalTouchTracker();
     host.removeEventListener('keydown', hostKeyDown);
     canvas.removeEventListener('keydown', canvasKeyDown);
     canvas.removeEventListener('wheel', wheelPan);
