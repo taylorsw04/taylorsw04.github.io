@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "types": [],
+    "skipLibCheck": true
+  },
+  "include": ["./*.ts"],
+  "exclude": []
+}

@@ -1,0 +1,46 @@
+{
+  "playground": {
+    "id": "tree-playground",
+    "label": "Interactive playground"
+  },
+  "recap": {
+    "id": "recap-tree",
+    "label": "B+ tree recap"
+  },
+  "sharing": {
+    "id": "sharing-tree",
+    "label": "Copy-on-write sharing"
+  },
+  "small-overlap": {
+    "id": "tree-small-overlap",
+    "label": "Single-overlap union"
+  },
+  "large-overlap": {
+    "id": "tree-large-overlap",
+    "label": "Multi-overlap union"
+  },
+  "alternating-overlap": {
+    "id": "tree-alternating-overlap",
+    "label": "Alternating odd/even union"
+  },
+  "step-timeline": {
+    "id": "tree-step-timeline",
+    "label": "Step-by-step cursor walk"
+  },
+  "slice": {
+    "id": "tree-slice",
+    "label": "Subtree slicing"
+  },
+  "reconstruction-min": {
+    "id": "tree-reconstruction-min",
+    "label": "Minimal-overlap reconstruction"
+  },
+  "reconstruction-max": {
+    "id": "tree-reconstruction-max",
+    "label": "Alternating-key reconstruction"
+  },
+  "union-demo": {
+    "id": "union-demo-tree",
+    "label": "Union example"
+  }
+}

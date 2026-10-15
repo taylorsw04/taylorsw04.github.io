@@ -1,0 +1,13 @@
+[
+  {
+    "slug": "sublinear-set-operations-in-btrees",
+    "title": "Sub-linear set operations in B+ trees",
+    "date": "2026-09-01",
+    "summary": "A visual guide to B+ tree union: copy-on-write sharing, decomposition, reconstruction, and an interactive tree playground.",
+    "markdown": "content/posts/sublinear-set-operations-in-btrees.md",
+    "entry": "docs/web/article.ts",
+    "template": "docs/web/post-template.html",
+    "cover": "public/covers/sublinear-set-operations-in-btrees.png",
+    "coverAlt": "Two B+ trees (blue Tree1, pink Tree2) shown above their green union output Tree3, with a decomposition strip of reused and exploded subtrees below"
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["es2020"],
+    "strict": true,
+    "declaration": true,
+    "sourceMap": false,
+    "outDir": "./dist-lib",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["b+tree.ts", "extended/**/*.ts"]
+}

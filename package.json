@@ -1,0 +1,30 @@
+{
+  "name": "taylorsw04.github.io",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Taylor Williams's personal website: a landing page and a rolling list of blog posts, including an interactive B+ tree union article.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "serve": "node scripts/serve.mjs",
+    "check": "tsc -p docs/web/tsconfig.json",
+    "test": "node scripts/test-site.mjs"
+  },
+  "devDependencies": {
+    "@types/d3-dispatch": "3.0.6",
+    "@types/d3-hierarchy": "^3.1.7",
+    "@types/d3-selection": "^3.0.11",
+    "@types/d3-zoom": "^3.0.8",
+    "@types/node": "^20.14.0",
+    "d3-hierarchy": "^3.1.2",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "marked": "^15.0.12",
+    "mermaid": "^11.12.2",
+    "parse5": "^7.3.0",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {}
+}

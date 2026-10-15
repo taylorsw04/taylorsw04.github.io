@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.dist-build-*/
+*.log
+.DS_Store
+
+# Local-only original source assets (e.g. the portrait photo's untouched,
+# full-resolution original, which still carries embedded EXIF/GPS metadata).
+# Only the optimized, metadata-stripped copies under public/ are published
+# and versioned; keep originals out of git so a future broad commit can't
+# accidentally upload private metadata.
+assets-src/
