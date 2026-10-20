@@ -88,7 +88,7 @@ Okay, so now we do the following:
 - Clone the larger of the two trees.
 - Iterate all entries in the smaller, and add them to `C`, tiebreaking as necessary.
 
-This gives us *O(M * log(M))*, where *M = min(size(`A`), size(`B`))*, which is certainly better!
+This gives us *O(M * log(A + B))*, where *M = min(size(`A`), size(`B`))*, which is certainly better!
 
 At this point, we have exhausted the speedups we can get while working outside of the B+ tree library. Unfortunately, this approach is also still slow enough that my team remained bottlenecked. After a lot of deep research queries and poking through literature, I was disappointed to discover that no algorithm for set operations with a sublinear bound existed in any self-balancing trees--at least that Claude and I could find. Determined to find one, I managed to find a couple of free evenings and derived a solution that is both relatively simple and (I believe) optimal! These solutions are [implemented and published](https://github.com/qwertie/btree-typescript/tree/master/extended) in the sorted-btree library.
 
